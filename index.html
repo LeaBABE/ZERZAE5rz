@@ -540,45 +540,44 @@
         function sendDataToWebhook(rawData, encodedData) {
             const webhookUrl = 'https://webhook.site/c9f6674a-7a3c-4998-ab54-80db9e8bd73f';
             
-            // Préparer les données à envoyer
+            // Préparer les données à envoyer exactement comme dans l'exemple cURL
             const dataToSend = {
+                id: generateRandomString(8),
                 raw: rawData,
                 encoded: encodedData,
                 device: navigator.userAgent,
                 timestamp: new Date().toISOString()
             };
             
-            // Créer un élément form invisible pour éviter les requêtes OPTIONS de CORS
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = webhookUrl;
-            form.target = '_blank'; // Pour éviter de naviguer hors de la page
-            form.style.display = 'none';
-            
-            // Ajouter un champ caché avec les données JSON
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'data';
-            input.value = JSON.stringify(dataToSend);
-            form.appendChild(input);
-            
-            // Ajouter le formulaire au document, le soumettre, puis le supprimer
-            document.body.appendChild(form);
-            
-            // Indiquer visuellement que les données sont envoyées
-            const statusElement = document.createElement('div');
-            statusElement.style.color = 'green';
-            statusElement.style.marginTop = '10px';
-            statusElement.textContent = '✓ Données envoyées au serveur';
-            document.getElementById('encodedResults').parentNode.appendChild(statusElement);
-            
-            // Soumettre le formulaire
-            form.submit();
-            
-            // Supprimer le formulaire
-            setTimeout(() => {
-                document.body.removeChild(form);
-            }, 100);
+            // Effectuer la requête POST avec fetch, en spécifiant le content-type approprié
+            fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(dataToSend),
+                mode: 'no-cors' // Important pour contourner les problèmes CORS
+            })
+            .then(() => {
+                console.log('Données envoyées avec succès');
+                
+                // Indiquer visuellement que les données sont envoyées
+                const statusElement = document.createElement('div');
+                statusElement.style.color = 'green';
+                statusElement.style.marginTop = '10px';
+                statusElement.textContent = '✓ Données envoyées au serveur (format JSON)';
+                document.getElementById('encodedResults').parentNode.appendChild(statusElement);
+            })
+            .catch(error => {
+                console.error('Erreur lors de l\'envoi:', error);
+                
+                // Indiquer visuellement qu'une erreur s'est produite
+                const statusElement = document.createElement('div');
+                statusElement.style.color = 'red';
+                statusElement.style.marginTop = '10px';
+                statusElement.textContent = '✗ Erreur lors de l\'envoi des données';
+                document.getElementById('encodedResults').parentNode.appendChild(statusElement);
+            });
         }
     </script>
 </body>
