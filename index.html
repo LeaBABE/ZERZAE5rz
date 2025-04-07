@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS Device Data Collector</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        #results {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+        #encodedResults {
+            background-color: #eaf7ff;
+            padding: 15px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 20px;
+            word-break: break-all;
+        }
+        button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .copy-btn {
+            background-color: #4CAF50;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>iOS Device Data Collector</h1>
+    <p>This page collects device fingerprinting data similar to cc.js</p>
+    
+    <button id="collectButton">Collect Device Data</button>
+    <button id="copyRawButton" class="copy-btn">Copy Raw Data</button>
+    <button id="copyEncodedButton" class="copy-btn">Copy Encoded Data</button>
+    
+    <h3>Raw Data:</h3>
+    <div id="results">Click "Collect Device Data" to start...</div>
+    
+    <h3>Encoded Data:</h3>
+    <div id="encodedResults"></div>
+
+    <script>
+        let deviceData = {};
+        const startTime = Date.now();
+        
+        function generateRandomString(length) {
+            const characters = 'abcdef0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            return result;
+        }
+
+        function xorEncrypt(text, key) {
+            let result = '';
+            for (let i = 0; i < text.length; i++) {
+                result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+            }
+            return result;
+        }
+
+        function toBase64(text) {
+            try {
+                return btoa(text);
+            } catch (e) {
+                return btoa(unescape(encodeURIComponent(text)));
+            }
+        }
+
+        function encryptDeviceData(data) {
+            const jsonString = JSON.stringify(data);
+            const key = "AWISoD2JVpGEQHXUKWAydLLU"; // Using the same key as in the sample
+            const xorEncrypted = xorEncrypt(jsonString, key);
+            return toBase64(xorEncrypted);
+        }
+
+        function collectCanvasData(rawData) {
+            try {
+                // Fonction Ab dans cc.js
+                const canvas = document.createElement('canvas');
+                canvas.width = 100;
+                canvas.height = 999;
+                const ctx = canvas.getContext('2d');
+                
+                // Premier test de canvas - chaîne de texte identique à celle utilisée dans cc.js
+                ctx.font = "100pt Arial"; // Important: c'est la même taille de police que dans cc.js
+                ctx.textBaseline = "top";
+                const testString = "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz0123456789";
+                
+                ctx.fillStyle = "#f60";
+                ctx.fillRect(0, 0, 100, 100);
+                ctx.fillStyle = "#069";
+                ctx.fillText(testString, 2, 2); // Position identique à cc.js
+                
+                // Capturer l'image et créer un hash SHA-1
+                const base64Data = canvas.toDataURL();
+                console.log("Canvas: " + base64Data); // Ceci est exactement ce que fait cc.js (fonction F)
+                
+                // Simuler l'algorithme SHA-1 de cc.js (en réalité, cc.js utilise P.algo.SHA1.create())
+                let hashValue = "";
+                for (let i = 0; i < base64Data.length; i += 10) {
+                    hashValue += base64Data.charCodeAt(i % base64Data.length).toString(16);
+                }
+                hashValue = hashValue.substring(0, 40);
+                
+                // Deuxième test de canvas avec des détails différents, comme dans cc.js
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#00ffe6"; // Couleur exacte de cc.js
+                ctx.fillRect(125, 20, 999/3, 100); // Dimensions exactes de cc.js
+                
+                ctx.fillStyle = "#00b3a1"; // Couleur exacte de cc.js
+                ctx.fillText(testString, 2, 15); // Position exacte de cc.js
+                
+                ctx.fillStyle = "rgba(0, 119, 138, 0.69)"; // Couleur exacte de cc.js
+                ctx.fillText(testString, 10, 25); // Position exacte de cc.js
+                
+                const detailedBase64 = canvas.toDataURL();
+                
+                // Simuler à nouveau l'algorithme SHA-1
+                let detailedHashValue = "";
+                for (let i = 0; i < detailedBase64.length; i += 8) {
+                    detailedHashValue += detailedBase64.charCodeAt(i % detailedBase64.length).toString(16);
+                }
+                detailedHashValue = detailedHashValue.substring(0, 40);
+                
+                // Assigner les valeurs exactement comme dans cc.js
+                rawData["canvas-print-100-999"] = hashValue;
+                rawData["canvas-print-detailed-100-999"] = detailedHashValue;
+                
+                const timingCp = Date.now() - startTime;
+                rawData["timing-cp"] = timingCp;
+                rawData["timing-gief"] = 0;
+            } catch (e) {
+                rawData["canvas-error"] = e.message;
+            }
+            
+            return rawData;
+        }
+
+        function collectWebGLData(rawData) {
+            const startWebGLTime = Date.now();
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                
+                if (gl) {
+                    rawData["webgl-supported"] = true;
+                    
+                    // Get WebGL extensions
+                    const extensions = gl.getSupportedExtensions();
+                    rawData["webgl-extensions"] = extensions;
+                    
+                    // Get WebGL max antialiasing samples
+                    let maxSamples = 0;
+                    const ext = gl.getExtension('WEBGL_draw_buffers');
+                    if (ext) {
+                        const maxColorAttachments = gl.getParameter(ext.MAX_COLOR_ATTACHMENTS_WEBGL);
+                        maxSamples = maxColorAttachments;
+                    } else {
+                        maxSamples = 16; // Typical max for iOS
+                    }
+                    rawData["webgl-max-aa"] = maxSamples.toString();
+                    
+                    // WebGL version info
+                    rawData["webgl-version"] = "WebGL 1.0";
+                    rawData["webgl-glsl-version"] = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
+                    
+                    // Vendor and renderer
+                    rawData["webgl-vendor"] = gl.getParameter(gl.VENDOR);
+                    rawData["webgl-renderer"] = gl.getParameter(gl.RENDERER);
+                    
+                    // Try to get unmasked vendor and renderer
+                    try {
+                        const debugExtension = gl.getExtension('WEBGL_debug_renderer_info');
+                        if (debugExtension) {
+                            rawData["webgl-vendor-real"] = gl.getParameter(debugExtension.UNMASKED_VENDOR_WEBGL);
+                            rawData["webgl-renderer-real"] = gl.getParameter(debugExtension.UNMASKED_RENDERER_WEBGL);
+                        } else {
+                            rawData["webgl-vendor-real"] = "Apple Inc.";
+                            rawData["webgl-renderer-real"] = "Apple GPU";
+                        }
+                    } catch (e) {
+                        rawData["webgl-vendor-real"] = "Apple Inc.";
+                        rawData["webgl-renderer-real"] = "Apple GPU";
+                    }
+                } else {
+                    rawData["webgl-supported"] = false;
+                }
+            } catch (e) {
+                rawData["webgl-supported"] = false;
+                rawData["webgl-error"] = e.message;
+            }
+            
+            rawData["timing-wgl"] = Date.now() - startWebGLTime;
+            rawData["timing-DEVICE-ORIENTATION"] = 0;
+            return rawData;
+        }
+
+        function collectFontData(rawData) {
+            const startKfTime = Date.now();
+            const testString = "abcdefghijklmnopqrstuvwxyz!@#$%^&*()ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const baseFonts = ["monospace", "sans-serif", "serif"];
+            const fontList = [
+                // Cyrillic fonts
+                "Times New Roman CYR", "Arial CYR", "Courier New CYR", "������", "Arial Cyr", 
+                "Times New Roman Cyr", "Courier New Cyr", "������������", "������ Pro", 
+                "WP CyrillicB", "WP CyrillicA", "���������", "������������ Pr6N B", 
+                "������-PUA", "���������������������", "������������������", 
+                "GaramondNo4CyrTCYLig", "HelveticaInseratCyr Upright", "HelveticaCyr Upright", 
+                "TL Help Cyrillic", "TLCyrillic2", "AGRevueCyr-Roman", "AGOptimaCyr", 
+                "HelveticaInseratCyrillicUpright", "HelveticaCyrillicUpright", 
+                "HelveticaCyrillic", "CyrillicRibbon", "CyrillicHover", "���������������", 
+                "Zrnic Cyr", "Zipper1 Cyr", "Xorx_windy Cyr", "Xorx_Toothy Cyr", 
+                "���������9", "�������������� ������������ Apple", 
+                
+                // Asian fonts
+                "Chinese Generic1", "Korean Generic1", "Bullets 5(Korean)", 
+                "UkrainianFuturisExtra", "VNI-Viettay", "UkrainianCompact", 
+                "UkrainianBrushScript", "TiffanyUkraine", "Baltica_Russian-ITV", 
+                "Vietnamese font", "Unicorn Ukrainian", "UkrainianTimesET", 
+                "UkrainianCourier", "Tiff-HeavyUkraine", 
+                "���������������������������������������������������������������������������������������������������������������������������������������������������������������������HungLan Artdesign - http://www.vietcomic.comVNI-Thufap2  Normalv2.0 Code VNI for WindowsVNI-Thufap2 Normal\u0002", 
+                "Vietnam", "Bwviet", "Soviet", "Soviet Expanded", "Soviet Bold", 
+                "Russian", "UVN Han Viet", "UkrainianAcademy", 
+                
+                // Common Western fonts
+                "Symbol", "Verdana", "Webdings", "Arial", "Georgia", "Courier New", 
+                "Trebuchet MS", "Times New Roman", "Impact", "Comic Sans MS", "Wingdings", 
+                "Tahoma", "Microsoft Sans Serif", "Arial Black", "Plantagenet Cherokee", 
+                "Arial Narrow", "Wingdings 2", "Wingdings 3", "Arial Unicode MS", "Papyrus", 
+                "Calibri", "Cambria", "Consolas", "Candara", "Franklin Gothic Medium", 
+                "Corbel", "Constantia", "Marlett", "Lucida Console", "Lucida Sans Unicode", 
+                "MS Mincho", "Arial Rounded MT Bold", "Palatino Linotype", "Batang", 
+                "MS Gothic", "PMingLiU", "SimSun", "MS PGothic", "MS PMincho", "Gulim", 
+                "Cambria Math", "Garamond", "Bookman Old Style", "Book Antiqua", 
+                "Century Gothic", "Monotype Corsiva", "Courier", "Meiryo", "Century", 
+                "MT Extra", "MS Reference Sans Serif", "MS Reference Specialty", "Mistral", 
+                "Bookshelf Symbol 7", "Lucida Bright", "Cooper Black", "Modern No. 20", 
+                "Bernard MT Condensed", "Bell MT", "Baskerville Old Face", "Bauhaus 93", 
+                "Britannic Bold", "Wide Latin", "Playbill", "Harrington", "Onyx", 
+                "Footlight MT Light", "Stencil", "Colonna MT", "Matura MT Script Capitals", 
+                "Copperplate Gothic Bold", "Copperplate Gothic Light", 
+                "Edwardian Script ITC", "Rockwell", "Curlz MT", "Engravers MT", 
+                "Rockwell Extra Bold", "Haettenschweiler", "MingLiU", "Mongolian Baiti", 
+                "Microsoft Yi Baiti", "Microsoft Himalaya", "SimHei", "SimSun-ExtB", 
+                "PMingLiU-ExtB", "MingLiU-ExtB", "MingLiU_HKSCS-ExtB", "MingLiU_HKSCS", 
+                "Gabriola", "Goudy Old Style", "Calisto MT", "Imprint MT Shadow", 
+                "Gill Sans Ultra Bold", "Century Schoolbook", 
+                "Gloucester MT Extra Condensed", "Perpetua", "Franklin Gothic Book", 
+                "Brush Script MT", "Microsoft Tai Le", "Gill Sans MT", "Tw Cen MT", 
+                "Lucida Handwriting", "Lucida Sans", "Segoe UI", "Lucida Fax", "MV Boli", 
+                "Sylfaen", "Estrangelo Edessa", "Mangal", "Gautami", "Tunga", "Shruti", 
+                "Raavi", "Latha", "Lucida Calligraphy", "Lucida Sans Typewriter", 
+                "Kartika", "Vrinda", "Perpetua Titling MT", "Cordia New", "Angsana New", 
+                "IrisUPC", "CordiaUPC", "FreesiaUPC", "Miriam", "Traditional Arabic", 
+                "Miriam Fixed", "JasmineUPC", "KodchiangUPC", "LilyUPC", "Levenim MT", 
+                "EucrosiaUPC", "DilleniaUPC", "Rod", "Narkisim", "FrankRuehl", "David", 
+                "Andalus", "Browallia New", "AngsanaUPC", "BrowalliaUPC", "MS UI Gothic", 
+                "Aharoni", "Simplified Arabic Fixed", "Simplified Arabic", "GulimChe", 
+                "Dotum", "DotumChe", "GungsuhChe", "Gungsuh", "BatangChe", "Meiryo UI", 
+                "NSimSun", "Segoe Script", "Segoe Print", "DaunPenh", "Kalinga", 
+                "Iskoola Pota", "Euphemia", "DokChampa", "Nyala", "MoolBoran", 
+                "Leelawadee", "Gisha", "Microsoft Uighur", "Arabic Typesetting", 
+                "Malgun Gothic", "Microsoft JhengHei", "DFKai-SB", "Microsoft YaHei", 
+                "FangSong", "KaiTi", 
+                
+                // Mac/iOS fonts
+                "Helvetica", "Segoe UI Light", "Segoe UI Semibold", "Andale Mono", 
+                "Palatino", "Geneva", "Monaco", "Lucida Grande", "Gill Sans", 
+                "Helvetica Neue", "Baskerville", "Hoefler Text", "Thonburi", "Herculanum", 
+                "Apple Chancery", "Didot", "Zapf Dingbats", "Apple Symbols", "Copperplate", 
+                "American Typewriter", "Zapfino", "Cochin", "Chalkboard", "Sathu", "Osaka", 
+                "BiauKai", "Segoe UI Symbol", "Aparajita", "Krungthep", "Ebrima", "Silom", 
+                "Kokila", "Shonar Bangla", "Sakkal Majalla", "Microsoft PhagsPa", 
+                "Microsoft New Tai Lue", "Khmer UI", "Vijaya", "Utsaah", "Charcoal CY", 
+                "Ayuthaya", "InaiMathi", "Euphemia UCAS", "Vani", "Lao UI", 
+                "GB18030 Bitmap", "KufiStandardGK", "Geeza Pro", "Chalkduster", 
+                "Tempus Sans ITC", "Kristen ITC", "Apple Braille", "Juice ITC", "STHeiti", 
+                "LiHei Pro", "DecoType Naskh", "New Peninim MT", "Nadeem", "Mshtakan", 
+                "Gujarati MT", "Devanagari MT", "Arial Hebrew", "Corsiva Hebrew", 
+                "Baghdad", "STFangsong"
+            ];
+
+            // Detect fonts
+            const testDiv = document.createElement("div");
+            testDiv.style.position = "absolute";
+            testDiv.style.left = "-9999px";
+            testDiv.style.visibility = "hidden";
+            testDiv.style.fontFamily = "sans-serif";
+            testDiv.style.fontSize = "72px";
+            testDiv.textContent = testString;
+            document.body.appendChild(testDiv);
+            
+            const defaultWidth = {};
+            const defaultHeight = {};
+            
+            for (let i = 0; i < baseFonts.length; i++) {
+                testDiv.style.fontFamily = baseFonts[i];
+                defaultWidth[baseFonts[i]] = testDiv.offsetWidth;
+                defaultHeight[baseFonts[i]] = testDiv.offsetHeight;
+            }
+            
+            const detectFont = function(font) {
+                let detected = false;
+                
+                for (let i = 0; i < baseFonts.length; i++) {
+                    testDiv.style.fontFamily = font + "," + baseFonts[i];
+                    if (testDiv.offsetWidth !== defaultWidth[baseFonts[i]] || 
+                        testDiv.offsetHeight !== defaultHeight[baseFonts[i]]) {
+                        detected = true;
+                    }
+                }
+                
+                return detected;
+            };
+            
+            // Check each font
+            for (let i = 0; i < fontList.length; i++) {
+                const fontName = fontList[i];
+                rawData["font-" + fontName] = detectFont(fontName);
+            }
+            
+            document.body.removeChild(testDiv);
+            rawData["timing-kf"] = Date.now() - startKfTime;
+            return rawData;
+        }
+
+        function collectPluginData(rawData) {
+            // Standard plugin detection
+            const standardPlugins = [
+                { name: "PDF Viewer", filename: "internal-pdf-viewer", desc: "Portable Document Format" },
+                { name: "Chrome PDF Viewer", filename: "internal-pdf-viewer", desc: "Portable Document Format" },
+                { name: "Chromium PDF Viewer", filename: "internal-pdf-viewer", desc: "Portable Document Format" },
+                { name: "Microsoft Edge PDF Viewer", filename: "internal-pdf-viewer", desc: "Portable Document Format" },
+                { name: "WebKit built-in PDF", filename: "internal-pdf-viewer", desc: "Portable Document Format" }
+            ];
+            
+            // Simulate plugins on iOS
+            for (const plugin of standardPlugins) {
+                rawData["plugin-" + plugin.name + "-filename"] = plugin.filename;
+                rawData["plugin-" + plugin.name + "-desc"] = plugin.desc;
+            }
+            
+            rawData["plugin-suffixes"] = "pdf";
+            rawData["plugin-mimes"] = "application/pdf,text/pdf";
+            rawData["timing-np"] = 4;
+            rawData["timing-iepl"] = 0;
+            
+            return rawData;
+        }
+
+        function collectScreenData(rawData) {
+            // Screen properties
+            rawData["window.screen.colorDepth"] = window.screen.colorDepth.toString();
+            rawData["window.clientInformation.language"] = window.navigator.language;
+            rawData["window.screen.pixelDepth"] = window.screen.pixelDepth.toString();
+            rawData["window.history.length"] = window.history.length.toString();
+            rawData["window.devicePixelRatio"] = window.devicePixelRatio.toString();
+            rawData["window.screen.height"] = window.screen.height.toString();
+            rawData["window.screen.width"] = window.screen.width.toString();
+            rawData["timing-wo"] = 1;
+            rawData["window.screen.availHeight"] = window.screen.availHeight.toString();
+            
+            // Screen orientation
+            if (window.screen.orientation) {
+                rawData["window.screen.orientation.type"] = window.screen.orientation.type;
+                rawData["window.screen.orientation.angle"] = window.screen.orientation.angle.toString();
+            } else {
+                // Fallback for iOS Safari which may not support orientation API
+                rawData["window.screen.orientation.type"] = "portrait-primary";
+                rawData["window.screen.orientation.angle"] = "0";
+            }
+            
+            // Dark mode detection (match the sample data format)
+            rawData["window.screen.darkMode.enabled"] = false;
+            rawData["timing-do"] = 0;
+            
+            return rawData;
+        }
+        
+        function collectWindowData(rawData) {
+            // Any other window data
+            return rawData;
+        }
+
+        function collectNavigatorData(rawData) {
+            // Navigator properties
+            const navigatorProps = [
+                "appVersion", "appName", "product", "platform", "language", 
+                "userAgent", "cookieEnabled", "appCodeName", "vendor", "productSub"
+            ];
+            
+            for (const prop of navigatorProps) {
+                if (navigator[prop] !== undefined) {
+                    rawData["navigator." + prop] = navigator[prop].toString();
+                }
+            }
+            
+            rawData["timing-no"] = 1;
+            
+            // Additional navigator properties
+            if (navigator.hardwareConcurrency !== undefined) {
+                rawData["navigator.hardwareConcurrency"] = navigator.hardwareConcurrency.toString();
+            }
+            
+            // Touch capability
+            rawData["touchEnabled"] = 'ontouchstart' in window;
+            
+            // Automation detection (always false for real devices)
+            rawData["navigator.automationEnabled"] = false;
+            
+            // Do Not Track
+            if (navigator.doNotTrack !== undefined) {
+                rawData["navigator.doNotTrack"] = navigator.doNotTrack;
+            } else {
+                rawData["navigator.doNotTrack"] = "";
+            }
+            
+            // Device motion capability flag
+            rawData["timing-MOBILE-DEVICE-MOTION"] = 1;
+            
+            return rawData;
+        }
+
+        function collectDeviceData() {
+            // Générer un SID aléatoire comme dans le vrai code
+            const sid = generateRandomString(16);
+            const fixedToken = "AWISoD2JVpGEQHXUKWAydLLU"; // Token fixe identique au JSON fourni
+            
+            // Initialisation avec des données fixes similaires à l'échantillon
+            let rawData = {
+                "sid": sid,
+                "_t": fixedToken, // Token fixe qui ne change pas
+                "cf_flags": "1022963",
+                "js-errors": [
+                    "TypeError: Member RTCIceServer.urls is required and must be an instance of (DOMString or sequence)",
+                    "InvalidCharacterError: The string contains invalid characters."
+                ],
+                "fresh-cookie": "true",
+                "cookie-_cc": fixedToken,
+                "cookie-_cid_cc": fixedToken,
+                "timing-sc": 9
+            };
+            
+            // Données temporelles
+            const now = new Date();
+            rawData["time-unix-epoch-ms"] = now.getTime();
+            rawData["time-local"] = now.toLocaleDateString() + " " + now.toLocaleTimeString();
+            rawData["time-string"] = now.toString();
+            rawData["time-tz-offset-minutes"] = now.getTimezoneOffset();
+            rawData["time-tz-has-dst"] = "true";
+            rawData["time-tz-dst-active"] = "true";
+            rawData["time-tz-std-offset"] = 420; // Codé en dur pour correspondre à l'échantillon
+            rawData["time-tz-fixed-locale-string"] = "06/03/2014 07:58:39";
+            rawData["timing-ti"] = 22;
+            
+            // Données de stockage DOM
+            rawData["dom-local-tag"] = fixedToken;
+            rawData["timing-ls"] = 0;
+            rawData["cid-dom-local-tag"] = fixedToken;
+            rawData["timing-cidls"] = 0;
+            rawData["dom-session-tag"] = fixedToken;
+            rawData["timing-ss"] = 0;
+            rawData["cid-dom-session-tag"] = fixedToken;
+            rawData["timing-cidss"] = 0;
+            
+            // Collecte des données dans l'ordre exact du JSON fourni
+            rawData = collectNavigatorData(rawData);
+            rawData = collectWindowData(rawData);
+            rawData = collectScreenData(rawData);
+            rawData = collectPluginData(rawData);
+            rawData = collectCanvasData(rawData);
+            rawData = collectFontData(rawData);
+            rawData = collectWebGLData(rawData);
+            
+            // Mesures de timing finales
+            rawData["timing-sync-collection"] = Date.now() - startTime;
+            rawData["ccjs_version"] = "PEDmr52XXlPxKAr9TvnMfA=="; // Version identique à celle du vrai cc.js
+            rawData["timing-generation"] = 1;
+            rawData["script-load-time"] = startTime;
+            rawData["device-data-captured-time"] = Date.now();
+            
+            return rawData;
+        }
+
+        document.getElementById('collectButton').addEventListener('click', function() {
+            deviceData = collectDeviceData();
+            
+            // Display raw data
+            document.getElementById('results').innerText = JSON.stringify(deviceData, null, 2);
+            
+            // Display encoded data
+            const encodedData = encryptDeviceData(deviceData);
+            document.getElementById('encodedResults').innerText = encodedData;
+        });
+        
+        document.getElementById('copyRawButton').addEventListener('click', function() {
+            navigator.clipboard.writeText(JSON.stringify(deviceData, null, 2))
+                .then(() => alert('Raw data copied to clipboard!'))
+                .catch(err => console.error('Failed to copy: ', err));
+        });
+        
+        document.getElementById('copyEncodedButton').addEventListener('click', function() {
+            const encodedData = encryptDeviceData(deviceData);
+            navigator.clipboard.writeText(encodedData)
+                .then(() => alert('Encoded data copied to clipboard!'))
+                .catch(err => console.error('Failed to copy: ', err));
+        });
+    </script>
+</body>
+</html> 
